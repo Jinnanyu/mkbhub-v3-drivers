@@ -1,0 +1,29 @@
+# Build outputs and local IDE settings
+build/
+out/
+.vscode/
+.idea/
+*.o
+*.obj
+*.elf
+*.axf
+*.hex
+*.bin
+*.map
+*.d
+*.log
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS and editor temporary files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo

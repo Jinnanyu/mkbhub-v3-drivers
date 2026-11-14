@@ -1,0 +1,85 @@
+#include <interrupt.h>
+#include "platform.h"
+#include "ndslib.h"
+#include <stdio.h>
+#include "mkb03_ct_func.h"
+#include "wdt_driver_user.h"
+
+#define USE_72M 0
+uint32_t cnt =0x00;
+
+
+
+void pit_setup(){
+    DEV_PIT->CHANNEL[0].CTRL= 0x09;
+    DEV_PIT->CHANNEL[0].RELOAD = 23999;
+    DEV_PIT->CHNEN = 0x1;
+    DEV_PIT->INTEN = 0x1;
+
+
+
+}
+
+void timer_isr(uint32_t int_no){
+
+
+	 (*intr_disable_ptr)(int_no);
+    (*intr_clear_ptr)(int_no);
+
+    DEV_PIT->INTST =0x01;
+
+
+    *((uint32_t*)0x3000) =cnt++;
+    DEV_WDT->WEN = 0x5aa5;//magic number
+    DEV_WDT->RESTART =0xcafe;//restart wdt
+
+    (*intr_clear_ptr)(int_no);
+    (*intr_enable_ptr)(int_no);
+}
+
+// =======================================================
+// Main Function
+// =======================================================
+int main(int argc, char **argv) {
+
+
+    pit_setup();
+	DEV_GPIO->CHANNELDIR = 0xFFFFFFFF;
+	DEV_GPIO->DATAOUT = 0xFFFFFFFF;
+	/*wdt_config_t wdt_config1 = {
+	        .RstTime = 7,
+	        .IntTime = 7,
+	        .RstEn = 1,
+	        .IntEn = 0,
+	        .ClkSel = 1,
+	        .En = 1
+	    };
+	 WDT_EN(&wdt_config1);*/
+	 WDT_Restart();
+	wdt_config_t wdt_config2 = {
+		        .RstTime = 6,
+		        .IntTime = 6,
+		        .RstEn = 1,
+		        .IntEn = 0,
+		        .ClkSel = 0,
+		        .En = 1
+		    };
+	 WDT_EN(&wdt_config2);
+	//DEV_WDT->WEN = 0x5aa5;
+	//DEV_WDT->CTRL = 0x779;//rst_en = 1, clk = pclk
+	//0b 0111 0111 1001 En RstEn Int_Clock_period 2^15 Rst_Clock_period 2^14
+
+
+     //(*intr_setup_ptr)(INT_NO_PIT, timer_isr);
+     (*intr_enable_ptr)(INT_NO_PIT);
+
+    for (;;) {
+        __asm__ __volatile__ ("wfi");
+    }
+
+    return 0;
+
+}
+// =======================================================
+// Main Function End
+// =======================================================

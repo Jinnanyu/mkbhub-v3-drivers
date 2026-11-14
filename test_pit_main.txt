@@ -1,0 +1,85 @@
+#include <interrupt.h>
+#include "platform.h"
+#include "ndslib.h"
+#include <stdio.h>
+#include "mkb03_ct_func.h"
+#include "pit_driver_user.h"
+
+#define USE_72M 0
+uint32_t cnt = 0x00;
+
+// =======================================================
+// MKBHUB GPIO Test
+// =======================================================
+void mkbhub_gpio_test(void) {
+    // IOMUX config: gpio
+    *((uint32_t*)0xF0100240) = 0x0;
+
+    // GPIO Output
+    DEV_GPIO->CHANNELDIR = 0x00000006;
+}
+// =======================================================
+// MKBHUB GPIO Test End
+// =======================================================
+
+void pit_setup() {
+    pit_channel_config_t ch0 = {
+        .ChMode = 2,
+        .ChClk = 1,
+        .Reload_value = 23999,
+        .Timer_select = 0
+    };
+    PIT_Setup(1, &ch0);
+    PIT_Reload(1, &ch0);
+
+    pit_channel_config_t ch1 = {
+        .ChMode = 2,
+        .ChClk = 1,
+        .Reload_value = 15999,
+        .Timer_select = 1
+    };
+    PIT_Setup(1, &ch1);
+    PIT_Reload(1, &ch1);
+
+    PIT_ChEn(1,&ch0);
+    PIT_ChEn(1,&ch1);
+    PIT_IntEn(1,&ch0);
+    PIT_IntEn(1,&ch1);
+}
+
+void user_define_pit_irqfunc(){
+
+    pit_channel_config_t st0 = {
+                .Timer_select = 0
+    };
+    pit_channel_config_t st1 = {
+                .Timer_select = 1
+    };
+    uint32_t status0 = PIT_IntSt_Read(1,&st0);
+    uint32_t status1 = PIT_IntSt_Read(1,&st1);
+    if(status0) {
+    	PIT_IntSt_Clear(1,&st0);
+        DEV_GPIO->DATAOUT ^= (1 << 1);
+    }
+    if(status1) {
+    	PIT_IntSt_Clear(1,&st1);
+        DEV_GPIO->DATAOUT ^= (1 << 2);
+    }
+}
+// =======================================================
+// Main Function
+// =======================================================
+int main(int argc, char **argv) {
+    mkbhub_gpio_test();
+    pit_setup();
+    PIT_ISR_Callback_Func_Config(&user_define_pit_irqfunc);
+    PIT_ISR_Enable();
+
+    for (;;) {
+        __asm__ __volatile__ ("wfi");
+    }
+    return 0;
+}
+// =======================================================
+// Main Function End
+// =======================================================
